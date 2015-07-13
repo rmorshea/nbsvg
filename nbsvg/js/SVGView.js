@@ -1,4 +1,4 @@
-define(["widgets/js/widget", "widgets/js/manager"], function(widget, manager) {
+define(["jquery", "widgets/js/widget"], function($, widget) {
 
     var SVGView = widget.DOMWidgetView.extend({
 

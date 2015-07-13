@@ -5,23 +5,43 @@ from __future__ import absolute_import
 
 import types
 import inspect
-from threading import Lock
-from string import Template
-from copy import copy
 import weakref
 import inspect
 import numpy as np
+from threading import Lock
+from string import Template
+from copy import copy
 
-from IPython.html import widgets
+from ipywidgets import widgets
 from IPython.display import display
 
-from IPython.utils.traitlets import (Any, Bool, Float, Tuple,
-                                    Int, Unicode, CUnicode,
-                                    HasTraits, Instance, Set,
-                                    List, Dict, TraitType, Type,
-                                    TraitError, ClassBasedTraitType,
-                                    Container, trait_init, Union)
+try:
+    from traitlets import (Any, Bool, Float, Tuple, Unicode,
+        CUnicode, HasTraits, Instance, List, Dict, TraitType,
+        Type, TraitError, Container, Union)
+except ImportError:
+    from IPython.utils.traitlets import (Any, Bool, Float,
+        Tuple, Unicode, CUnicode, HasTraits, Instance, List,
+        Dict, TraitType, Type, TraitError, Container, Union)
 
+# Global Widget Sync Control
+
+class _sync(object):
+
+    _control = True
+
+    def toggle(self):
+        """global control for widget activation"""
+        try:
+            self._control = not self._control
+        except UnboundLocalError:
+            raise UnboundLocalError('* import cuts global widget sync control')
+
+    def get(self):
+        """global widget sync status"""
+        return self._control
+
+global_sync = _sync()
 
 #-----------------------------------------------------------------------------
 # Utilities
@@ -110,7 +130,7 @@ def copy_display(from_element, to_element, *exclude):
         if name not in exclude:
             new_trait = from_element._trait_values[name]
             old_trait = to_element._trait_values[name]
-            if new_trait!=None and old_trait==None and old_trait!=new_trait:
+            if new_trait!=None and old_trait==None and new_trait!=old_trait:
                 setattr(to_element,name,new_trait)
 
 
@@ -119,10 +139,10 @@ def copy_display(from_element, to_element, *exclude):
 #-----------------------------------------------------------------------------
 
 
-class NoDefaultSpecified ( object ): pass
+class NoDefaultSpecified (object): pass
 NoDefaultSpecified = NoDefaultSpecified()
 
-class Undefined ( object ): pass
+class Undefined (object): pass
 Undefined = Undefined()
 
 class Length(CUnicode):
@@ -139,18 +159,6 @@ class Length(CUnicode):
             return value
         else:
             raise TraitError('invalid value for type: %r' % value)
-
-class TraitModel(widgets.Widget):
-    
-    value = Any(sync=True)
-    label = Unicode(sync=True)
-    name = Unicode(sync=True)
-
-    def __init__(self, name, label, value, *args, **kwargs):
-        self.value = value
-        self.label = label
-        self.name = name
-        super(TraitModel,self).__init__(*args, **kwargs)
 
 class DataDict(Dict):
 
@@ -181,18 +189,8 @@ class Data(TraitType):
     def __init__(self, trait, **metadata):
         self.trait = trait
         self.info_text = trait.info_text
+        self.default_value = trait.default_value
         super(Data,self).__init__(**metadata)
-
-    @property
-    def default_value(self):
-        return self.trait.default_value
-
-    @default_value.setter
-    def default_value(self, value):
-        raise AttributeError('Data object uses default_value from self.trait')
-
-    def get_default_value(self):
-        return self.trait.get_default_value()
 
     def set_handler(self, handler):
         if callable(handler):
@@ -442,13 +440,6 @@ class Registry(HasTraits):
             self._children = value
         else:
             self.error()
-    
-    def _klass_changed(self, name, value):
-        if (value is not None) and (inspect.isclass(value) or isinstance(value, py3compat.string_types)):
-            setattr(self, name, value)
-        else:
-            raise TraitError('The klass attribute must be a class or None'
-                                ' not: %r' % value)
 
     def append(self, item):
         """Append an item to children."""
@@ -530,9 +521,7 @@ class MutableRegistryMixin(HasTraits):
             return True
     
     def _children_changed(self, name, value):
-        if self.verify(*value):
-            setattr(self, name, value)
-        else:
+        if not self.verify(*value):
             self.error()
 
     def append(self, item):
@@ -588,12 +577,13 @@ class BaseElement(HasTraits):
     klass = Type()
     tag = Unicode()
     template = Unicode()
-    parent = Instance('%s.BaseElement' % __name__)
+    parent = Instance('%s.BaseElement' % __name__, allow_none=True)
     # traits with `linked=False` are not associated with
     # the self.data dictionary through a change handler
     # even though they have metadata for `attr`
     label = Unicode(attr='id', linked=False) # acts like html id
     kind = Unicode(attr='class', linked=False) # acts like html class
+    templ_form = Template('')
     
     def __init__(self,*args,**kwargs):
         super(BaseElement,self).__init__(*args,**kwargs)
@@ -695,7 +685,7 @@ class Element(SelectionMixin,BaseElement):
         """
         if name == 'children':
             return u'\n'.join([c._render_template() for c in self.children])
-        elif name not in self._dynamic_traits:
+        else:
             value = getattr(self,name)
             if value == None:
                 return ""
@@ -771,7 +761,9 @@ class SVG(Element):
 
     def __init__(self,*args,**kwargs):
         super(SVG,self).__init__(*args,**kwargs)
-        self._widget = SVGWidget(self)
+        local_sync = kwargs.pop('sync',True)
+        if global_sync.get() and local_sync:
+            self._widget = SVGWidget(self)
 
     def append(self,child):
         """Add a child to self.children"""
@@ -823,12 +815,14 @@ class DisplayMixin(HasTraits):
     _matrix = Tuple(trans=True, display=True)
 
     def __init__(self, *args, **kwargs):
+        self.sync = kwargs.pop('sync',True)
         super(DisplayMixin,self).__init__(*args,**kwargs)
         self.on_trait_change(self._render_transform, self.trait_names(trans=True))
 
     def _notify_trait(self, name, old, new):
         super(DisplayMixin,self)._notify_trait(name, old, new)
-        self._notify_widget()
+        if global_sync.get() and self.sync:
+            self._notify_widget()
 
     def _notify_widget(self):
         self.parent._notify_widget()
@@ -1052,7 +1046,7 @@ class Ellipse(Shape):
 class Polyline(Shape):
 
     tag = Unicode('polyline')
-    points = Data(List([(2,2),(12,12)]), attr=True)
+    points = Data(List(None,[(2,2),(12,12)]), attr=True)
 
     def handle_value(self,name):
         """Given a trait name return a value or formated string.
@@ -1070,12 +1064,12 @@ class Polyline(Shape):
 class Polygon(Polyline):
 
     tag = Unicode('polygon')
-    points = Data(List([(2,30),(12,10),(22,30)]), attr=True)
+    points = Data(List(None,[(2,30),(12,10),(22,30)]), attr=True)
 
 class Line(Shape):
 
     tag = Unicode('line')
-    points = Data(List([(2,2),(12,12)]))
+    points = Data(Tuple((Tuple,Tuple)))
     x1 = Data(Length(2), coords=True, attr=True)
     y1 = Data(Length(2), coords=True, attr=True)
     x2 = Data(Length(12), coords=True, attr=True)
@@ -1083,10 +1077,11 @@ class Line(Shape):
 
     def __init__(self,*args,**kwargs):
         super(Line,self).__init__(*args,**kwargs)
-        self.on_trait_change(self.set_points,self.trait_names(coords=True))
-        self.on_trait_change(self.set_coords,'points')
+        self.on_trait_change(self._set_points,self.trait_names(coords=True))
+        self.on_trait_change(self._set_coords,'points')
+        self._set_points()
 
-    def set_points(self):
+    def _set_points(self):
         """Adjust the points trait to match x1, y1, x2, and y2 when they've changed."""
         point_list = [[0,0],[0,0]]
         for name in self.trait_names(coords=True):
@@ -1098,7 +1093,7 @@ class Line(Shape):
             point_list[i][j] = getattr(self,name)
         self._trait_values['points'] = [tuple(t) for t in point_list]
     
-    def set_coords(self,name,old,new):
+    def _set_coords(self,name,old,new):
         """Adjust the traits x1, y1, x2, and y2 to match points when it's changed."""
         point_list = [[0,0],[0,0]]
         for name in self.trait_names(coords=True):
@@ -1274,7 +1269,7 @@ class EllipticalArc(PathSegment):
 class LineTo(PathSegment):
 
     _command = Unicode('L')
-    _coords = Data(List([10,10]))
+    _coords = Data(List(None,[10,10]))
 
     def __init__(self, *args, **kwargs):
         super(PathSegment,self).__init__(**kwargs)

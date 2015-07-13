@@ -1,0 +1,8 @@
+nbsvg/__init__.py
+nbsvg.egg-info/PKG-INFO
+nbsvg.egg-info/SOURCES.txt
+nbsvg.egg-info/dependency_links.txt
+nbsvg.egg-info/requires.txt
+nbsvg.egg-info/top_level.txt
+nbsvg/py/__init__.py
+nbsvg/py/svg.py

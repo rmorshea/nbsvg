@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: nbsvg
+Version: 0.1
+Summary: Implaments pythonic SVG in the IPython Notebook
+Home-page: https://github.com/rmorshead/ipython-svg
+Author: Ryan Morshead
+Author-email: ryan.morshead@gmail.com
+License: New BSD License
+Description: UNKNOWN
+Keywords: data visualization svg python ipython widgets widget
+Platform: UNKNOWN
+Classifier: Development Status :: 2 - Pre-Alpha
+Classifier: Programming Language :: Python
+Classifier: License :: OSI Approved :: MIT License

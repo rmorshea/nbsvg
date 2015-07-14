@@ -8,6 +8,7 @@ define(["jquery", "widgets/js/widget"], function($, widget) {
             this.svg_changed();
             this.$el.attr({overflow: 'hidden'});
             this.model.on('change:svg', this.svg_changed, this);
+
         },
 
         svg_changed: function() {
@@ -15,5 +16,18 @@ define(["jquery", "widgets/js/widget"], function($, widget) {
         },
     });
 
+    var ElementView = widget.DOMWidgetView.extend({
+
+        render: function() {
+            
+        }
+    })
+
     return {SVGView: SVGView};
 });
+
+
+
+for (var i=0; i<this.model.sync_names.length; i++) {
+                
+            }

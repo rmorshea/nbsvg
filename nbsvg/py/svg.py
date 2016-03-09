@@ -274,7 +274,7 @@ class Selector(HasTraits):
 
     _name = Unicode()
     _value = Any()
-    _metadata = Dict()
+    metadata = Dict()
 
     def __init__(self, name, value=Undefined, metadata=None, *args, **kwargs):
         super(Selector,self).__init__(*args,**kwargs)
@@ -282,7 +282,7 @@ class Selector(HasTraits):
             metadata = {}
         self._name = name
         self._value = value
-        self._metadata = metadata
+        self.metadata = metadata
 
     def match(self, element):
         """Returns True if element has all the given trait names and values
@@ -298,7 +298,7 @@ class Selector(HasTraits):
         (in other words the selector will be applied to a family tree
         working upwards from one parent to the next).
         """
-        if self._name in element.trait_names(**self._metadata):
+        if self._name in element.trait_names(**self.metadata):
             trait_instance = element.traits()[self._name]
         else:
             return False
@@ -314,11 +314,11 @@ class Selector(HasTraits):
                 check_value = trait_instance._validate(element,self._value)
                 if check_value != trait_instance.__get__(element):
                     return False
-        if self._metadata != {}:
-            for arg in self._metadata.keys():
+        if self.metadata != {}:
+            for arg in self.metadata.keys():
                 try:
-                    value = trait_instance._metadata[arg]
-                    if value!=self._metadata[arg]:
+                    value = trait_instance.metadata[arg]
+                    if value!=self.metadata[arg]:
                         raise KeyError
                 except KeyError:
                     return False
@@ -624,7 +624,7 @@ class BaseElement(HasTraits):
         traits = self.traits(attr=anyattr)
         for name in traits.keys():
             if self._trait_values[name] is not None:
-                trait_metadata = getattr(traits[name], '_metadata')
+                trait_metadata = getattr(traits[name], 'metadata')
                 if isinstance(trait_metadata['attr'],str):
                     attr_temps.append('{0}="{{{1}}}"'.format(trait_metadata['attr'],name))
                 elif trait_metadata.get('raw',False):
@@ -1227,7 +1227,7 @@ class PathSegment(HasTraits):
 
     def coord_names(self):
         anycoord = lambda v: False if v is None else True
-        order = lambda name: self.traits()[name]._metadata['coord']
+        order = lambda name: self.traits()[name].metadata['coord']
         names = self.trait_names(coord=anycoord)
         names.sort(key=order)
         return names

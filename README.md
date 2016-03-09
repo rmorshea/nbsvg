@@ -20,6 +20,6 @@ Now just create a new notebook and import with:
 
 ##Usage
 
-See `docs/example.ipynb` for demonstrations of object creation, alteration, and selection.
-Also, checkout `docs/Clock.ipynb`, which shows how to make an animated clock with some
-relatively simple code.
+See `docs/example.ipynb` for demonstrations of object creation, alteration,
+and selection. Also, checkout `docs/clock.ipynb`, which shows how to make an
+animated clock with some relatively simple code.

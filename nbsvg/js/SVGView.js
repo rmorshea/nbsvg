@@ -1,4 +1,4 @@
-define(["jquery", "widgets/js/widget"], function($, widget) {
+define(["jquery", "jupyter-js-widgets"], function($, widget) {
 
     var SVGView = widget.DOMWidgetView.extend({
 

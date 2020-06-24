@@ -82,11 +82,11 @@ def collect(element, selector):
         determine which children of the element are selected.
     """
     children = element.children
-    for index in range(len(children)):
-        if isinstance(children[index],Group):
-            return collect(children[index],selector)
-        elif selector.match(children[index]):
-            new_child = children[index]
+    for child in children:
+        if isinstance(child, Group):
+            return collect(child, selector)
+        elif selector.match(child):
+            new_child = child
             if isinstance(element,Group):
                 copy_display(element,new_child)
             return new_child
@@ -104,12 +104,12 @@ def collect_all(element, selector):
     """
     collection = []
     children = element.children
-    for index in range(len(children)):
-        if isinstance(children[index],Group):
-            for group_child in collect_all(children[index],selector):
+    for child in children:
+        if isinstance(child, Group):
+            for group_child in collect_all(child, selector):
                 collection.append(group_child)
-        elif selector.match(children[index]):
-            new_child = children[index]
+        elif selector.match(child):
+            new_child = child
             if isinstance(element,Group):
                 copy_display(element,new_child)
             collection.append(new_child)
@@ -130,7 +130,11 @@ def copy_display(from_element, to_element, *exclude):
         if name not in exclude:
             new_trait = from_element._trait_values[name]
             old_trait = to_element._trait_values[name]
-            if new_trait!=None and old_trait==None and new_trait!=old_trait:
+            if (
+                new_trait != None
+                and old_trait is None
+                and new_trait != old_trait
+            ):
                 setattr(to_element,name,new_trait)
 
 
@@ -170,7 +174,7 @@ class DataDict(Dict):
         if obj is None:
             return self
         else:
-            data = dict()
+            data = {}
             traits = obj.traits()
             for name in traits.keys():
                 if isinstance(traits[name],Data):
@@ -426,7 +430,7 @@ class Registry(HasTraits):
 
     def __init__(self, items, type, *args, **kwargs):
         super(Registry,self).__init__(*args, **kwargs)
-        self._children = list()
+        self._children = []
         self.klass = type
         self.extend(items)
 
@@ -452,7 +456,7 @@ class Registry(HasTraits):
     def verify(self, *items):
         """Checks that items contains the appropriate types and returns a boolean."""
         for itm in items:
-            if not (type(itm) is self.klass or self.klass is None):
+            if type(itm) is not self.klass and self.klass is not None:
                 return False
         else:
             return True
@@ -475,9 +479,8 @@ class MixedRegistry(Registry):
     def verify(self, *items):
         """Checks that items contains the appropriate types and returns a boolean."""
         for itm in items:
-            if self.klass is not None:
-                if not isinstance(itm, self.klass):
-                    return False
+            if self.klass is not None and not isinstance(itm, self.klass):
+                return False
         else:
             return True
 
@@ -687,7 +690,7 @@ class Element(SelectionMixin,BaseElement):
             return u'\n'.join([c._render_template() for c in self.children])
         else:
             value = getattr(self,name)
-            if value == None:
+            if value is None:
                 return ""
             else:
                 return value
@@ -1014,7 +1017,7 @@ class Text(VoidElement, DisplayMixin):
         generated in self._template_default when rendering the final template.
         """
         value = getattr(self,name)
-        if value == None:
+        if value is None:
             return ""
         else:
             return value
@@ -1184,7 +1187,7 @@ class PathSegment(HasTraits):
     close = Bool(False)
 
     def __init__(self, *args, **kwargs):
-        cdict = dict()
+        cdict = {}
         for k in kwargs.keys():
             if k in self.coord_names():
                 cdict[k] = kwargs[k]
@@ -1193,7 +1196,7 @@ class PathSegment(HasTraits):
         super(PathSegment,self).__init__(**kwargs)
 
         if args == tuple():
-            for name in cdict.keys():
+            for name in cdict:
                 setattr(self, name, cdict[name])
         else:
             if cdict == {}:
@@ -1235,10 +1238,7 @@ class PathSegment(HasTraits):
     def _absolute_changed(self, name, value):
         setattr(self, name, value)
         command = self._command
-        if self.absolute:
-            command = command.upper()
-        else:
-            command = command.lower()
+        command = command.upper() if self.absolute else command.lower()
         setattr(self, '_command', command)
 
     def abs(self):
@@ -1281,7 +1281,7 @@ class LineTo(PathSegment):
         if length%2 != 0:
             raise TraitError('self._coords must have an even number'
                             ' of entries (two per coordinate)')
-        points = list()
+        points = []
         for i in range(length/2):
             c = tuple(self._coords[i*2:(i*2+2)])
             points.append(c)
@@ -1289,7 +1289,7 @@ class LineTo(PathSegment):
 
     @points.setter
     def points(self, value):
-        coords = list()
+        coords = []
         for p in value:
             if isinstance(p, tuple) and len(p)==2:
                 coords.append(p[0])
